@@ -1,0 +1,13 @@
+patch 0018-phy-rcar-gen3-usb2-power-on-port-in-host-mode-to.patch
+patch 0023-media-platform-rcar-vin-do-not-reset-IFMD-VIN.patch
+patch 0038-iommu-ipmmu-vmsa-Add-r8a77980-support.patch
+patch 0039-iommu-ipmmu-vmsa-Add-r8a779-7-8-0-whitelist.patch
+patch 0040-iommu-ipmmu-vmsa-Initialize-the-whitelist-before-reg.patch
+patch 0073-pci-pcie-rcar-Fix-bus-notifier-for-dma-range-limit.patch
+patch 0076-serial-sh-sci-Fix-minimal-rx_timeout-value.patch
+patch 0112-drm-rcar-du-Fix-connector-leak-during-deinitializati.patch
+patch 0129-gpu-drm-rcar-du-rcar_du_vsp-Check-if-gem-buffer-has-.patch
+patch 0130-gpu-drm-rcar-du-Extend-VSP1-DRM-interface.patch
+patch 0131-media-platform-vsp1-Extend-DRM-VSP1-interface.patch
+patch 0132-media-platform-vsp1-Add-cropping-handling-to-VSP-alp.patch
+patch 0138-media-platform-rcar-vin-Set-default-crop-rectangle.patch

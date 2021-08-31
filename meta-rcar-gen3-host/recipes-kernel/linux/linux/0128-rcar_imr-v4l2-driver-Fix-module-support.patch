@@ -1,0 +1,166 @@
+From 9f62ef26b8b952f2ff7cf71a154d916a3c715759 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Mon, 5 Oct 2020 15:57:04 +0300
+Subject: [PATCH 08/12] rcar_imr v4l2 driver: Fix module support.
+
+---
+ arch/arm64/boot/dts/renesas/r8a7795.dtsi |  8 ++++++++
+ arch/arm64/boot/dts/renesas/r8a7796.dtsi |  6 ++++++
+ drivers/media/platform/rcar_imr.c        | 32 +++++++++++++++++++++++++++++---
+ 3 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a7795.dtsi b/arch/arm64/boot/dts/renesas/r8a7795.dtsi
+index 91f8004..d1ea07f 100755
+--- a/arch/arm64/boot/dts/renesas/r8a7795.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a7795.dtsi
+@@ -3256,6 +3256,10 @@
+ 			status = "disabled";
+ 		};
+ 
++		imr_v4l2_alloc: imr_alloc {
++			dma-coherent;
++		};
++
+ 		imr-lx4@fe860000 {
+ 			compatible = "renesas,r8a7795-imr-lx4",
+ 				     "renesas,imr-lx4";
+@@ -3264,6 +3268,7 @@
+ 			clocks = <&cpg CPG_MOD 823>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 823>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imr-lx4@fe870000 {
+@@ -3274,6 +3279,7 @@
+ 			clocks = <&cpg CPG_MOD 822>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 822>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imr-lx4@fe880000 {
+@@ -3284,6 +3290,7 @@
+ 			clocks = <&cpg CPG_MOD 821>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 821>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imr-lx4@fe890000 {
+@@ -3294,6 +3301,7 @@
+ 			clocks = <&cpg CPG_MOD 820>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 820>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		fcpcs: vcp4@fe90f000 {
+diff --git a/arch/arm64/boot/dts/renesas/r8a7796.dtsi b/arch/arm64/boot/dts/renesas/r8a7796.dtsi
+index 38865d7..df6ac66 100755
+--- a/arch/arm64/boot/dts/renesas/r8a7796.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a7796.dtsi
+@@ -3082,6 +3082,10 @@
+ 			status = "disabled";
+ 		};
+ 
++		imr_v4l2_alloc: imr_alloc {
++			dma-coherent;
++		};
++
+ 		imr-lx4@fe860000 {
+ 			compatible = "renesas,r8a7796-imr-lx4",
+ 				     "renesas,imr-lx4";
+@@ -3090,6 +3094,7 @@
+ 			clocks = <&cpg CPG_MOD 823>;
+ 			power-domains = <&sysc R8A7796_PD_A3VC>;
+ 			resets = <&cpg 823>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imr-lx4@fe870000 {
+@@ -3100,6 +3105,7 @@
+ 			clocks = <&cpg CPG_MOD 822>;
+ 			power-domains = <&sysc R8A7796_PD_A3VC>;
+ 			resets = <&cpg 822>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imp_distributer: impdes0 {
+diff --git a/drivers/media/platform/rcar_imr.c b/drivers/media/platform/rcar_imr.c
+index 93423f6..c3706be 100644
+--- a/drivers/media/platform/rcar_imr.c
++++ b/drivers/media/platform/rcar_imr.c
+@@ -18,6 +18,7 @@
+ #include <linux/delay.h>
+ #include <linux/rcar-imr.h>
+ #include <linux/of.h>
++#include <linux/of_device.h>
+ #include <media/v4l2-device.h>
+ #include <media/v4l2-ctrls.h>
+ #include <media/v4l2-fh.h>
+@@ -1975,6 +1976,8 @@ static int imr_probe(struct platform_device *pdev)
+ 	struct device_node *np = pdev->dev.of_node;
+ 	int ret;
+ 	struct device *adev;
++	phandle *prop;
++	struct device_node *node;
+ 
+ 	imr = devm_kzalloc(&pdev->dev, sizeof(*imr), GFP_KERNEL);
+ 	if (!imr)
+@@ -2048,10 +2051,15 @@ static int imr_probe(struct platform_device *pdev)
+ 		ret = PTR_ERR(adev);
+ 		goto m2m_init_rollback;
+ 	}
++
+ 	adev->dma_mask = &adev->coherent_dma_mask;
+ 	adev->coherent_dma_mask = DMA_BIT_MASK(32);
+-	arch_setup_dma_ops(adev, 0, DMA_BIT_MASK(32) + 1, NULL, true);
+ 	imr->alloc_dev = adev;
++	prop = of_get_property(np, "alloc-dev", NULL);
++	if (prop) {
++		node = of_find_node_by_phandle(be32_to_cpup(prop));
++		of_dma_configure(adev, node, true);
++	}
+ 
+ 	strlcpy(imr->video_dev.name, dev_name(&pdev->dev), sizeof(imr->video_dev.name));
+ 	imr->video_dev.fops         = &imr_fops;
+@@ -2095,7 +2103,6 @@ static int imr_remove(struct platform_device *pdev)
+ 
+ 	//pm_runtime_disable(imr->v4l2_dev.dev);
+ 	video_unregister_device(&imr->video_dev);
+-	//device_destroy(imr->alloc_dev, MKDEV(0, 0));
+ 	v4l2_m2m_release(imr->m2m_dev);
+ 	v4l2_device_unregister(&imr->v4l2_dev);
+ 
+@@ -2163,7 +2170,26 @@ static struct platform_driver imr_platform_driver = {
+ 	},
+ };
+ 
+-module_platform_driver(imr_platform_driver);
++static int __init imr_module_init(void)
++{
++	return platform_driver_register(&imr_platform_driver);
++}
++
++static int imr_device_destroy(struct device *dev, void *data)
++{
++	device_destroy(imr_alloc_class, dev->devt);
++	return 0;
++}
++
++static void __exit imr_module_exit(void)
++{
++	class_for_each_device(imr_alloc_class, NULL, NULL, imr_device_destroy);
++	class_destroy(imr_alloc_class);
++	platform_driver_unregister(&imr_platform_driver);
++}
++
++module_init(imr_module_init);
++module_exit(imr_module_exit);
+ 
+ MODULE_ALIAS("imr");
+ MODULE_AUTHOR("Cogent Embedded Inc. <sources@cogentembedded.com>");
+-- 
+2.7.4
+
